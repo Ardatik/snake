@@ -1,8 +1,8 @@
 import tkinter as tk
 import random
 
-WIDTH = 640
-HEIGHT = 480
+WIDTH = 400
+HEIGHT = 400
 SEGMENT_SIZE = 20
 
 
@@ -10,7 +10,7 @@ class SnakeGame:
     def __init__(self, root):
         self.root = root
         self.timer_id = None
-        self.current_speed = 50
+        self.current_speed = 10
         self.snake = []
         self.running = True
         self.food = None
@@ -24,13 +24,7 @@ class SnakeGame:
         )
 
         self.build_hamiltonian_cycle()
-
-        print("Гамильтонов цикл:")
-        for i, coord in enumerate(self.hamiltonian_cycle):
-            print(f"{i}: {coord}")
-        print(f"Длина цикла: {len(self.hamiltonian_cycle)}")
-        assert len(self.hamiltonian_cycle) == (WIDTH // SEGMENT_SIZE) * (HEIGHT // SEGMENT_SIZE), \
-            "Ошибка: длина цикла не совпадает с количеством клеток!"
+        self.snake_set = set(self.snake)
 
         self.spawn_snake()
         self.spawn_food()
@@ -54,17 +48,17 @@ class SnakeGame:
     def spawn_snake(self):
         self.snake = [self.hamiltonian_cycle[0],
                       self.hamiltonian_cycle[1], self.hamiltonian_cycle[2]]
+        self.snake_set = set(self.snake)
 
     def spawn_food(self):
-        snake_set = set(self.snake)
-        while True:
-            x = random.randint(0, (WIDTH - SEGMENT_SIZE) //
-                               SEGMENT_SIZE) * SEGMENT_SIZE
-            y = random.randint(0, (HEIGHT - SEGMENT_SIZE) //
-                               SEGMENT_SIZE) * SEGMENT_SIZE
-            if (x, y) not in snake_set:
-                self.food = (x, y)
-                break
+        free_cells = [(x * SEGMENT_SIZE, y * SEGMENT_SIZE) for x in range(WIDTH // SEGMENT_SIZE)
+                      for y in range(HEIGHT // SEGMENT_SIZE) if (x * SEGMENT_SIZE, y * SEGMENT_SIZE) not in self.snake_set]
+
+        if not free_cells:
+            self.running = False
+            return
+
+        self.food = random.choice(free_cells)
         self.canvas.create_rectangle(
             self.food[0], self.food[1], self.food[0] + SEGMENT_SIZE, self.food[1] + SEGMENT_SIZE, fill="red", tags="food"
         )
@@ -73,8 +67,6 @@ class SnakeGame:
         head_index = self.hamiltonian_cycle.index(self.snake[0])
         next_index = (head_index + 1) % len(self.hamiltonian_cycle)
         new_head = self.hamiltonian_cycle[next_index]
-
-        print(f"Голова змейки: {self.snake[0]}, Следующая позиция: {new_head}")
 
         if new_head == self.food:
             self.snake.append(self.snake[-1])
@@ -87,7 +79,11 @@ class SnakeGame:
             self.snake.pop()
 
         self.snake.insert(0, new_head)
+        self.snake_set = set(self.snake)
         self.update_canvas()
+
+        if len(self.snake) == (WIDTH // SEGMENT_SIZE) * (HEIGHT // SEGMENT_SIZE):
+            self.running = False
 
     def update_canvas(self):
         self.canvas.delete("snake")
@@ -105,14 +101,19 @@ class SnakeGame:
             self.game_over()
 
     def game_over(self):
+        free_cells = [(x * SEGMENT_SIZE, y * SEGMENT_SIZE) for x in range(WIDTH // SEGMENT_SIZE)
+                      for y in range(HEIGHT // SEGMENT_SIZE) if (x * SEGMENT_SIZE, y * SEGMENT_SIZE) not in self.snake_set]
+
         self.canvas.create_text(
             WIDTH // 2,
             HEIGHT // 2,
-            text="YOU WIN!",
+            text="GAME OVER!\nNo more free cells!" if not free_cells else "GAME OVER!",
             fill="white",
-            font=("Arial", 36),
+            font=("Arial", 24),
             tags="gameover",
         )
+        print(f"Конец игры! Итоговый счёт: {self.score}")
+        self.running = False
 
 
 if __name__ == "__main__":
